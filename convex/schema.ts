@@ -19,7 +19,10 @@ export default defineSchema({
     user: defineTable({
         name: v.string(),
         email: v.optional(v.string()),
-    }).index("byEmail", ["email"]).index("byName", ["name"]),
+        tokenIdentifier: v.string(),
+    }).index("byTokenIdentifier", ["tokenIdentifier"])
+    .index("byEmail", ["email"])
+    .index("byName", ["name"]),
 
     band: defineTable({
         name: v.string(),

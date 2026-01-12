@@ -7,11 +7,11 @@ export default function Home() {
   return (
     <>
       <Authenticated>
-        <UserButton />
+        You Are Signed In!
         <Content />
       </Authenticated>
       <Unauthenticated>
-        <SignInButton />
+        Please Sign In!
       </Unauthenticated>
     </>
   );

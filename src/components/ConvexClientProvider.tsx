@@ -1,9 +1,10 @@
 'use client'
 
-import { ReactNode } from 'react'
-import { ConvexReactClient } from 'convex/react'
+import { ReactNode, useEffect } from 'react'
+import { ConvexReactClient, useConvexAuth, useMutation } from 'convex/react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { useAuth } from '@clerk/nextjs'
+import { api } from '@convex/_generated/api'
 
 if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
   throw new Error('Missing NEXT_PUBLIC_CONVEX_URL in your .env file')
@@ -11,9 +12,23 @@ if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL)
 
+function AuthSync() {
+  const { isAuthenticated } = useConvexAuth();
+  const storeUser = useMutation(api.users.storeUser);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      storeUser();
+    }
+  }, [isAuthenticated, storeUser]);
+
+  return null;
+}
+
 export default function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      <AuthSync />
       {children}
     </ConvexProviderWithClerk>
   )
