@@ -6,7 +6,7 @@
 - [x] Deployment
 - [x] Database Setup
 - [X] Authentication
-- [ ] Band Creation
+- [X] Band Creation
 - [ ] Band Members
 - [ ] Gigs & Practices
 - [ ] RSVPing
@@ -19,4 +19,9 @@
 - [ ] App Launch
 
 Notes from last session:
-Ported project to convex, need to redo all database calls.
+Need to add actions for:
+- Band UD
+- Band Member CRUD
+- Event CRUD
+
+Need to port bands page from legacy
