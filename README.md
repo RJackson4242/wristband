@@ -6,7 +6,7 @@
 - [x] Deployment
 - [x] Database Setup
 - [X] Authentication
-- [X] Band Creation
+- [ ] Band Creation
 - [ ] Band Members
 - [ ] Gigs & Practices
 - [ ] RSVPing
