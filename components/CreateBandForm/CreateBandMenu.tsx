@@ -23,7 +23,7 @@ export function CreateBandMenu() {
         </DialogTrigger>
       </DropdownMenuItem>
 
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle>Create Band</DialogTitle>
           <DialogDescription>Add a new band to your profile.</DialogDescription>

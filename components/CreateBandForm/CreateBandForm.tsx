@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function CreateBandForm({ onSuccess }: { onSuccess?: () => void }) {
+export function CreateBandForm() {
   const createBand = useMutation(api.bands.createBand);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,8 +21,7 @@ export function CreateBandForm({ onSuccess }: { onSuccess?: () => void }) {
     const name = formData.get("name") as string;
 
     try {
-      await createBand({ name });
-      if (onSuccess) onSuccess(); 
+      await createBand({ name }); 
       (e.target as HTMLFormElement).reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create band");
