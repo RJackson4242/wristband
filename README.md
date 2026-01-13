@@ -24,4 +24,12 @@ Need to add actions for:
 - Band Member CRUD
 - Event CRUD
 
-Need to port bands page from legacy
+Relations:
+User --> Bands
+Band --> Users
+User --> Events
+Event --> Users
+Band --> Events
+Event --> Bands
+
+Need to port bands page from legacy (with new actions)
