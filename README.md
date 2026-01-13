@@ -5,7 +5,7 @@
 - [x] Deployment
 - [x] Database Connection
 - [X] Authentication
-- [ ] Database Schema
+- [X] Database Schema
 - [ ] MVP Convex Actions
 - [ ] MVP UI
 - [ ] Session Musicians
