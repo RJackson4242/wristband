@@ -9,6 +9,7 @@
  */
 
 import type * as bands from "../bands.js";
+import type * as memberships from "../memberships.js";
 import type * as users from "../users.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   bands: typeof bands;
+  memberships: typeof memberships;
   users: typeof users;
 }>;
 

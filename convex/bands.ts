@@ -1,73 +1,127 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "./users";
-import { Id } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
+import { retrieveCurrentUser } from "./users";
 
-type BandData = { 
-  name: string; 
-  _id: Id<"band"> 
-};
-
-export const createBand = mutation({
+// Create band
+export const cBand = mutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    // Get current user
-    const user = await getCurrentUser(ctx);
+    const user = await retrieveCurrentUser(ctx);
+    if (!user) throw new Error("You must be logged in to create a band");
 
-    // Confirm user is logged in
-    if (!user) {
-      throw new Error("You must be logged in to create a band");
-    }
+    const bandId = await ctx.db.insert("band", { name: args.name });
 
-    // Create the band
-    const bandId = await ctx.db.insert("band", {
-      name: args.name,
-    });
-
-    // Link user to the band
     await ctx.db.insert("bandMember", {
       bandId,
       userId: user._id,
       role: "admin",
     });
 
-    return bandId;
+    return "Band Created.";
   },
 });
 
-export const getUserBands = query({
-  args: {},
-  handler: async (ctx) => {
-    // Get current user
-    const user = await getCurrentUser(ctx);
+// Get band by id
+export const rBand = query({
+  args: { bandId: v.id("band") },
+  handler: async (ctx, args) => {
+    const user = await retrieveCurrentUser(ctx);
+    if (!user) throw new Error("You must be logged in to view band pages.");
 
-    // Confirm user is logged in
-    if (!user) {
-      return [];
-    }
+    const band = await ctx.db.get(args.bandId);
+    if (!band) throw new Error("Band not found.");
 
-    // Get band memberships
-    const memberships = await ctx.db
+    const membership = await ctx.db
       .query("bandMember")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_band", (q) =>
+        q.eq("userId", user._id).eq("bandId", args.bandId)
+      )
+      .unique();
+    if (!membership)
+      throw new Error("You do not have permission to view this band.");
+
+    return band;
+  },
+});
+
+// Change band name
+export const uBandName = mutation({
+  args: { bandId: v.id("band"), name: v.string() },
+  handler: async (ctx, args) => {
+    const user = await retrieveCurrentUser(ctx);
+    if (!user)
+      throw new Error("You must be logged in to edit band information.");
+
+    const band = await ctx.db.get(args.bandId);
+    if (!band) throw new Error("Band not found.");
+
+    const membership = await ctx.db
+      .query("bandMember")
+      .withIndex("by_user_band", (q) =>
+        q.eq("userId", user._id).eq("bandId", args.bandId)
+      )
+      .unique();
+    if (!membership || membership.role != "admin")
+      throw new Error("You do not have permission to edit this band.");
+
+    await ctx.db.patch(band._id, {
+      name: args.name,
+    });
+
+    return "Band name updated.";
+  },
+});
+
+// Delete band
+export const dBand = mutation({
+  args: { bandId: v.id("band") },
+  handler: async (ctx, args) => {
+    const user = await retrieveCurrentUser(ctx);
+    if (!user)
+      throw new Error("You must be logged in to edit band information.");
+
+    const band = await ctx.db.get(args.bandId);
+    if (!band) throw new Error("Band not found.");
+
+    const userMembership = await ctx.db
+      .query("bandMember")
+      .withIndex("by_user_band", (q) =>
+        q.eq("userId", user._id).eq("bandId", band._id)
+      )
+      .unique();
+    if (!userMembership || userMembership.role != "admin")
+      throw new Error("You do not have permission to delete this band.");
+
+    const bandMemberships = await ctx.db
+      .query("bandMember")
+      .withIndex("by_band", (q) => q.eq("bandId", band._id))
       .collect();
 
-    // Get band details
-    const bands = await Promise.all(
-      memberships.map(async (membership) => {
-        const band = await ctx.db.get(membership.bandId);
+    const events = await ctx.db
+      .query("event")
+      .withIndex("by_band", (q) => q.eq("bandId", args.bandId))
+      .collect();
 
-        // Band missing (deleted?)
-        if (!band) return null;
+    const rsvpsToDelete: Promise<void>[] = [];
 
-        return { 
-          name: band.name,
-          _id: band._id 
-        };
-      })
-    );
+    for (const event of events) {
+      const rsvps = await ctx.db
+        .query("rsvp")
+        .withIndex("by_event", (q) => q.eq("eventId", event._id))
+        .collect();
 
-    // Filter nulls
-    return bands.filter((b): b is BandData => b !== null);
+      for (const rsvp of rsvps) {
+        rsvpsToDelete.push(ctx.db.delete(rsvp._id));
+      }
+    }
+
+    await Promise.all([
+      rsvpsToDelete,
+      ...events.map((e) => ctx.db.delete(e._id)),
+      ...bandMemberships.map((m) => ctx.db.delete(m._id)),
+      ctx.db.delete(band._id),
+    ]);
+
+    return "Band deleted.";
   },
 });

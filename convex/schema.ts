@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-const roles = v.union(
+const bandRoles = v.union(
   v.literal("admin"),
   v.literal("member"),
   v.literal("invited")
@@ -24,14 +24,13 @@ const rsvpStatuses = v.union(
 
 export default defineSchema({
   user: defineTable({
-    name: v.string(),
-    email: v.optional(v.string()),
+    username: v.string(),
+    displayName: v.string(),
     tokenIdentifier: v.string(),
   })
-    .index("byName", ["name"])
-    .index("byEmail", ["email"])
+    .index("byUsername", ["username"])
     .index("byTokenIdentifier", ["tokenIdentifier"]),
-    
+
   band: defineTable({
     name: v.string(),
   }),
@@ -39,10 +38,11 @@ export default defineSchema({
   bandMember: defineTable({
     bandId: v.id("band"),
     userId: v.id("user"),
-    role: roles,
+    role: bandRoles,
   })
     .index("by_band", ["bandId"])
     .index("by_user", ["userId"])
+    .index("by_user_role", ["userId", "role"])
     .index("by_user_band", ["userId", "bandId"]),
 
   event: defineTable({
@@ -53,6 +53,7 @@ export default defineSchema({
     location: v.optional(v.string()),
     description: v.optional(v.string()),
   })
+    .index("by_band", ["bandId"])
     .index("by_band_time", ["bandId", "startTime"]),
 
   rsvp: defineTable({
