@@ -1,87 +1,93 @@
-import { mutation, query, QueryCtx } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { UserJSON } from "@clerk/backend";
+import { v, Validator } from "convex/values";
+import { getCurrentUser, userByToken } from "./utils";
+import { getMembershipsByUser, leaveBand } from "./memberships";
+import { deleteRsvpsByUser } from "./rsvps";
 
-export const cUser = mutation({
+export const get = query({
+  args: {},
+  handler: async (ctx) => {
+    return await getCurrentUser(ctx);
+  },
+});
+
+export const store = mutation({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Called upsertUser without authentication present");
+      throw new Error("Called storeUser without authentication present");
     }
 
     const user = await ctx.db
-      .query("user")
-      .withIndex("byTokenIdentifier", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
       .unique();
 
-    const newUsername = identity.preferredUsername || identity.nickname;
-    const newName = identity.name || newUsername || "User";
+    const username = identity.nickname || "user";
+    const namePart =
+      `${identity.givenName || ""} ${identity.familyName || ""}`.trim();
+    const displayName = namePart.length > 0 ? namePart : username;
+
+    const userAttributes = {
+      username,
+      displayName,
+      tokenIdentifier: identity.subject,
+    };
 
     if (user !== null) {
-      const updates: Record<string, string | undefined> = {};
-      if (user.username !== newUsername) {
-        updates.username = newUsername;
-      }
-      if (user.displayName !== newName) {
-        updates.displayName = newName;
-      }
-      if (Object.keys(updates).length > 0) {
-        await ctx.db.patch(user._id, updates);
+      if (
+        user.displayName !== userAttributes.displayName ||
+        user.username !== userAttributes.username
+      ) {
+        await ctx.db.patch(user._id, userAttributes);
       }
       return user._id;
     }
 
-    return await ctx.db.insert("user", {
-      username: newUsername!,
-      displayName: newName!,
-      tokenIdentifier: identity.tokenIdentifier!,
-    });
+    return await ctx.db.insert("users", userAttributes);
   },
 });
 
-export async function retrieveCurrentUser(ctx: QueryCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    return null;
-  }
-  return await ctx.db
-    .query("user")
-    .withIndex("byTokenIdentifier", (q) =>
-      q.eq("tokenIdentifier", identity.tokenIdentifier)
-    )
-    .unique();
-}
+export const upsertFromClerk = internalMutation({
+  args: { data: v.any() as Validator<UserJSON> },
+  async handler(ctx, { data }) {
+    const username = data.username || "user";
+    const namePart = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+    const displayName = namePart.length > 0 ? namePart : username;
 
-export const rUser = query({
-  args: {},
-  handler: async (ctx) => {
-    return await retrieveCurrentUser(ctx);
+    const userAttributes = {
+      username,
+      displayName,
+      tokenIdentifier: data.id,
+    };
+
+    const user = await userByToken(ctx, data.id);
+    if (user === null) {
+      await ctx.db.insert("users", userAttributes);
+    } else {
+      await ctx.db.patch(user._id, userAttributes);
+    }
   },
 });
 
-export const dUser = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const user = await retrieveCurrentUser(ctx);
+export const deleteFromClerk = internalMutation({
+  args: { clerkUserId: v.string() },
+  async handler(ctx, { clerkUserId }) {
+    const user = await userByToken(ctx, clerkUserId);
+
     if (!user) {
-      throw new Error("User not found.");
+      return;
     }
 
-    const memberships = await ctx.db
-      .query("bandMember")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
+    const memberships = await getMembershipsByUser(ctx, user._id);
 
-    const rsvps = await ctx.db
-      .query("rsvp")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
+    for (const membership of memberships) {
+      await leaveBand(ctx, membership.bandId, user._id);
+    }
 
-    await Promise.all([
-      ...memberships.map((m) => ctx.db.delete(m._id)),
-      ...rsvps.map((m) => ctx.db.delete(m._id)),
-      ctx.db.delete(user._id),
-    ]);
+    await deleteRsvpsByUser(ctx, user._id);
+    await ctx.db.delete(user._id);
   },
 });

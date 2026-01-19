@@ -15,30 +15,35 @@
 
 ## Actions
 
+### Utils
+
+- [x] Get current user (optional error)
+- [x] Get user from clerk token
+- [x] Assert band membership / role
+
 ### Users
 
-- [x] Create User
-- [x] Retrieve Current User
-- [x] Update User Details on login
-- [x] Delete User by ID
-- [ ] Delete User via webhooks
+- [x] Get User Details
+- [x] Upsert on login
+- [x] Upsert from Clerk
+- [x] Delete from Clerk
 
 ### Bands
 
 - [x] Create Band
-- [x] Retrieve Band Details
+- [x] Get Band Details
 - [x] Update Band Name
 - [x] Delete Band
 
 ### Invites + Memberships
 
-- [x] Create Membership
-- [x] Retrieve Bands from User
-- [x] Retrieve Pending Invites from User
-- [x] Retrieve Role from User
-- [x] Retrieve Users from Band
-- [x] Update Membership Status / Role
-- [x] Delete Membership (Requires additional error handling)
+- [x] Invite User
+- [x] Get Memberships from User
+- [x] Get Memberships from Band
+- [x] Accept Invite
+- [x] Promote User to Admin
+- [x] Leave Band
+- [x] Kick User
 
 ### Events
 
@@ -46,7 +51,7 @@
 - [ ] Retrieve Events from Band
 - [ ] Retrieve Event Details
 - [ ] Update Event Details
-- [ ] Delete Event
+- [x] Delete Event
 
 ### RSVPs
 

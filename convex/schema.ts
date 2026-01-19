@@ -23,30 +23,29 @@ const rsvpStatuses = v.union(
 );
 
 export default defineSchema({
-  user: defineTable({
+  users: defineTable({
     username: v.string(),
     displayName: v.string(),
     tokenIdentifier: v.string(),
   })
-    .index("byUsername", ["username"])
-    .index("byTokenIdentifier", ["tokenIdentifier"]),
+    .index("by_name", ["username"])
+    .index("by_token", ["tokenIdentifier"]),
 
-  band: defineTable({
+  bands: defineTable({
     name: v.string(),
   }),
 
-  bandMember: defineTable({
-    bandId: v.id("band"),
-    userId: v.id("user"),
+  memberships: defineTable({
+    bandId: v.id("bands"),
+    userId: v.id("users"),
     role: bandRoles,
   })
     .index("by_band", ["bandId"])
     .index("by_user", ["userId"])
-    .index("by_user_role", ["userId", "role"])
     .index("by_user_band", ["userId", "bandId"]),
 
-  event: defineTable({
-    bandId: v.id("band"),
+  events: defineTable({
+    bandId: v.id("bands"),
     name: v.string(),
     type: eventTypes,
     startTime: v.number(),
@@ -56,9 +55,9 @@ export default defineSchema({
     .index("by_band", ["bandId"])
     .index("by_band_time", ["bandId", "startTime"]),
 
-  rsvp: defineTable({
-    userId: v.id("user"),
-    eventId: v.id("event"),
+  rsvps: defineTable({
+    userId: v.id("users"),
+    eventId: v.id("events"),
     status: rsvpStatuses,
   })
     .index("by_event", ["eventId"])

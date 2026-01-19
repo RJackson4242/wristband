@@ -9,8 +9,12 @@
  */
 
 import type * as bands from "../bands.js";
+import type * as events from "../events.js";
+import type * as http from "../http.js";
 import type * as memberships from "../memberships.js";
+import type * as rsvps from "../rsvps.js";
 import type * as users from "../users.js";
+import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -20,8 +24,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   bands: typeof bands;
+  events: typeof events;
+  http: typeof http;
   memberships: typeof memberships;
+  rsvps: typeof rsvps;
   users: typeof users;
+  utils: typeof utils;
 }>;
 
 /**
