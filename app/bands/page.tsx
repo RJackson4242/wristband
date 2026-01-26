@@ -2,7 +2,7 @@
 
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { BandCard } from "../../components/BandCard";
+import { BandCard } from "./BandCard";
 import { CreateBandDialog } from "./CreateBandDialog";
 
 export default function BandsPage() {

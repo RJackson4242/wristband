@@ -1,6 +1,6 @@
 "use client";
 
-import { EventCard } from "@/components/EventCard";
+import { EventCard } from "@/app/events/EventCard";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";

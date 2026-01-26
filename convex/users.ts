@@ -2,15 +2,15 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
 import { ConvexError, v, Validator } from "convex/values";
 import { getCurrentUser, userByToken } from "./utils";
-import { getMembershipsByUser, leaveBand } from "./memberships";
+import { getByUser, leaveBand } from "./memberships";
 import { deleteRsvpsByUser } from "./rsvps";
 
-export const get = query({
-  args: {},
-  handler: async (ctx) => {
-    return await getCurrentUser(ctx);
-  },
-});
+// export const get = query({
+//   args: {},
+//   handler: async (ctx) => {
+//     return await getCurrentUser(ctx);
+//   },
+// });
 
 export const store = mutation({
   args: {},
@@ -81,7 +81,7 @@ export const deleteFromClerk = internalMutation({
       return;
     }
 
-    const memberships = await getMembershipsByUser(ctx, user._id);
+    const memberships = await getByUser(ctx, user._id);
 
     for (const membership of memberships) {
       await leaveBand(ctx, membership.bandId, user._id);

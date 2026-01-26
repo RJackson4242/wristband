@@ -38,47 +38,44 @@ export const invite = mutation({
   },
 });
 
-export async function getMembershipsByUser(ctx: QueryCtx, userId: Id<"users">) {
+export async function getByUser(ctx: QueryCtx, userId: Id<"users">) {
   return await ctx.db
     .query("memberships")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 }
 
-export const getFromUser = query({
-  args: { status: v.union(v.literal("active"), v.literal("invited")) },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
+// export const getFromUser = query({
+//   args: { status: v.union(v.literal("active"), v.literal("invited")) },
+//   handler: async (ctx, args) => {
+//     const user = await getCurrentUserOrThrow(ctx);
 
-    const memberships = await getMembershipsByUser(ctx, user._id);
+//     const memberships = await getMembershipsByUser(ctx, user._id);
 
-    return memberships.filter((m) => {
-      if (args.status === "invited") {
-        return m.role === "invited";
-      }
-      return m.role === "admin" || m.role === "member";
-    });
-  },
-});
+//     return memberships.filter((m) => {
+//       if (args.status === "invited") {
+//         return m.role === "invited";
+//       }
+//       return m.role === "admin" || m.role === "member";
+//     });
+//   },
+// });
 
-export async function getMembershipsByBand(ctx: QueryCtx, bandId: Id<"bands">) {
+export async function getByBand(ctx: QueryCtx, bandId: Id<"bands">) {
   return await ctx.db
     .query("memberships")
     .withIndex("by_band", (q) => q.eq("bandId", bandId))
     .collect();
 }
 
-export const getFromBand = query({
-  args: { id: v.id("bands") },
-  handler: async (ctx, args) => {
-    return getMembershipsByBand(ctx, args.id);
-  },
-});
+// export const getFromBand = query({
+//   args: { id: v.id("bands") },
+//   handler: async (ctx, args) => {
+//     return getMembershipsByBand(ctx, args.id);
+//   },
+// });
 
-export async function getMembershipsCountByBand(
-  ctx: QueryCtx,
-  bandId: Id<"bands">,
-) {
+export async function countByBand(ctx: QueryCtx, bandId: Id<"bands">) {
   return (
     await ctx.db
       .query("memberships")

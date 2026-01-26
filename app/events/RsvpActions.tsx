@@ -1,4 +1,4 @@
-import { Button } from "./ui/button";
+import { Button } from "../../components/ui/button";
 import { CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 
 type RsvpStatus = "yes" | "no" | "maybe" | "pending";
@@ -15,7 +15,7 @@ export default function RsvpActions({
   isDialog = false,
 }: RsvpActionsProps) {
   return (
-    <div className={`flex gap-2 w-full ${isDialog ? "justify-end" : ""}`}>
+    <div className={`${isDialog ? "justify-end" : ""}`}>
       <Button
         size="sm"
         variant={currentRsvp === "yes" ? "default" : "outline"}

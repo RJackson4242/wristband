@@ -3,7 +3,7 @@ import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { assertBandPermissions, getCurrentUserOrThrow } from "./utils";
 import { deleteEventsByBand, getFutureEventCount } from "./events";
 import { Id } from "./_generated/dataModel";
-import { getMembershipsByUser, getMembershipsCountByBand } from "./memberships";
+import { getByUser, countByBand } from "./memberships";
 
 export const create = mutation({
   args: { name: v.string() },
@@ -22,18 +22,18 @@ export const create = mutation({
   },
 });
 
-export async function getBandById(ctx: QueryCtx, bandId: Id<"bands">) {
-  return await ctx.db.get(bandId);
-}
+// export async function getBandById(ctx: QueryCtx, bandId: Id<"bands">) {
+//   return await ctx.db.get(bandId);
+// }
 
-export const get = query({
-  args: { id: v.id("bands") },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
-    await assertBandPermissions(ctx, user._id, args.id);
-    return await getBandById(ctx, args.id);
-  },
-});
+// export const get = query({
+//   args: { id: v.id("bands") },
+//   handler: async (ctx, args) => {
+//     const user = await getCurrentUserOrThrow(ctx);
+//     await assertBandPermissions(ctx, user._id, args.id);
+//     return await ctx.db.get(args.id);
+//   },
+// });
 
 export const update = mutation({
   args: { id: v.id("bands"), name: v.string() },
@@ -77,15 +77,12 @@ export const getBandCards = query({
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
 
-    const memberships = await getMembershipsByUser(ctx, user._id);
+    const memberships = await getByUser(ctx, user._id);
 
     const bands = [];
     for (const membership of memberships) {
-      const band = await getBandById(ctx, membership.bandId);
-      const memberCount = await getMembershipsCountByBand(
-        ctx,
-        membership.bandId,
-      );
+      const band = await ctx.db.get(membership.bandId);
+      const memberCount = await countByBand(ctx, membership.bandId);
       const upcomingEventsCount = await getFutureEventCount(
         ctx,
         membership.bandId,

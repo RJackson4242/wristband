@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "./ui/card";
+} from "../../components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,36 +15,36 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
+} from "../../components/ui/dialog";
 import { Edit, Trash2, MapPin, Calendar, Users } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "./ui/button";
-import { Separator } from "./ui/separator";
-import { Badge } from "./ui/badge";
+import { Button } from "../../components/ui/button";
+import { Separator } from "../../components/ui/separator";
+import { Badge } from "../../components/ui/badge";
 import RsvpActions from "./RsvpActions";
 
 type RsvpStatus = "yes" | "no" | "maybe" | "pending";
 
 interface EventCardProps {
   id: Id<"events">;
-  title: string;
-  bandName?: string;
+  name: string;
+  bandName: string;
   type: string;
   description?: string;
   startTime: number;
   location?: string;
   currentRsvp: RsvpStatus;
   attendingCount: number;
-  totalMembers: number;
+  totalRsvps: number;
   isAdmin: boolean;
   showBandName?: boolean;
 }
 
 export function EventCard({
   id,
-  title,
+  name,
   bandName,
   type,
   description,
@@ -52,7 +52,7 @@ export function EventCard({
   location,
   currentRsvp,
   attendingCount,
-  totalMembers,
+  totalRsvps,
   isAdmin,
   showBandName = false,
 }: EventCardProps) {
@@ -84,7 +84,7 @@ export function EventCard({
             </div>
 
             <div>
-              <CardTitle>{title}</CardTitle>
+              <CardTitle>{name}</CardTitle>
               {showBandName && bandName && <p>{bandName}</p>}
             </div>
           </CardHeader>
@@ -104,7 +104,7 @@ export function EventCard({
               <div>
                 <Users />
                 <span>
-                  {attendingCount} / {totalMembers} Attending
+                  {attendingCount} / {totalRsvps} Attending
                 </span>
               </div>
             </div>
@@ -126,7 +126,7 @@ export function EventCard({
             <Badge variant="outline">{type}</Badge>
             <span>{format(startTime, "MMMM do, yyyy")}</span>
           </div>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>{name}</DialogTitle>
           {bandName && <DialogDescription>{bandName}</DialogDescription>}
         </DialogHeader>
 
