@@ -1,6 +1,6 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
-import { v, Validator } from "convex/values";
+import { ConvexError, v, Validator } from "convex/values";
 import { getCurrentUser, userByToken } from "./utils";
 import { getMembershipsByUser, leaveBand } from "./memberships";
 import { deleteRsvpsByUser } from "./rsvps";
@@ -17,7 +17,7 @@ export const store = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Called storeUser without authentication present");
+      throw new ConvexError("Called storeUser without authentication present");
     }
 
     const user = await ctx.db

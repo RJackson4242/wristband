@@ -24,7 +24,7 @@ export const invite = mutation({
     const inviteeMembership = await ctx.db
       .query("memberships")
       .withIndex("by_user_band", (q) =>
-        q.eq("userId", user._id).eq("bandId", args.bandId)
+        q.eq("userId", user._id).eq("bandId", args.bandId),
       )
       .unique();
     if (inviteeMembership)
@@ -75,6 +75,18 @@ export const getFromBand = query({
   },
 });
 
+export async function getMembershipsCountByBand(
+  ctx: QueryCtx,
+  bandId: Id<"bands">,
+) {
+  return (
+    await ctx.db
+      .query("memberships")
+      .withIndex("by_band", (q) => q.eq("bandId", bandId))
+      .collect()
+  ).length;
+}
+
 export const accept = mutation({
   args: { id: v.id("memberships") },
   handler: async (ctx, args) => {
@@ -104,7 +116,7 @@ export const promote = mutation({
       ctx,
       currentUser._id,
       membershipToPromote.bandId,
-      true
+      true,
     );
     await ctx.db.patch(membershipToPromote._id, { role: "admin" });
     return "User promoted to Admin.";
@@ -114,7 +126,7 @@ export const promote = mutation({
 export async function leaveBand(
   ctx: MutationCtx,
   bandId: Id<"bands">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ) {
   const membership = await assertBandPermissions(ctx, userId, bandId);
 
@@ -130,7 +142,7 @@ export async function leaveBand(
 
   if (membership.role === "admin") {
     const otherAdmins = allMembers.filter(
-      (m) => m.userId !== membership.userId && m.role === "admin"
+      (m) => m.userId !== membership.userId && m.role === "admin",
     );
 
     if (otherAdmins.length === 0) {
@@ -160,7 +172,7 @@ export const kick = mutation({
     const targetMembership = await assertBandPermissions(
       ctx,
       args.userId,
-      args.bandId
+      args.bandId,
     );
 
     if (targetMembership.role === "admin") throw new Error("Target is admin");
@@ -174,7 +186,7 @@ export const kick = mutation({
       const rsvp = await ctx.db
         .query("rsvps")
         .withIndex("by_user_event", (q) =>
-          q.eq("userId", args.userId).eq("eventId", event._id)
+          q.eq("userId", args.userId).eq("eventId", event._id),
         )
         .unique();
       if (rsvp) await ctx.db.delete(rsvp._id);

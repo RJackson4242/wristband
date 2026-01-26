@@ -9,12 +9,12 @@ module.exports = {
   async redirects() {
     return [
       {
-        source: '/',
-        destination: '/dashboard',
+        source: "/",
+        destination: "/bands",
         permanent: true,
       },
-    ]
+    ];
   },
-}
+};
 
 export default nextConfig;

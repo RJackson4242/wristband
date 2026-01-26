@@ -10,7 +10,7 @@ const eventTypes = v.union(
   v.literal("gig"),
   v.literal("meeting"),
   v.literal("recording"),
-  v.literal("other")
+  v.literal("other"),
 );
 
 export const create = mutation({
@@ -47,7 +47,7 @@ export async function getFutureEvents(ctx: QueryCtx, bandId: Id<"bands">) {
   return await ctx.db
     .query("events")
     .withIndex("by_band_time", (q) =>
-      q.eq("bandId", bandId).gte("startTime", Date.now())
+      q.eq("bandId", bandId).gte("startTime", Date.now()),
     )
     .order("asc")
     .collect();
@@ -60,16 +60,30 @@ export const getUpcoming = query({
   },
 });
 
+export async function getFutureEventCount(ctx: QueryCtx, bandId: Id<"bands">) {
+  return (
+    await ctx.db
+      .query("events")
+      .withIndex("by_band_time", (q) =>
+        q.eq("bandId", bandId).gte("startTime", Date.now()),
+      )
+      .collect()
+  ).length;
+}
+
 export const getPast = query({
-  args: { bandId: v.id("bands") },
+  args: {
+    bandId: v.id("bands"),
+    paginationOpts: v.any(),
+  },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("events")
       .withIndex("by_band_time", (q) =>
-        q.eq("bandId", args.bandId).lt("startTime", Date.now())
+        q.eq("bandId", args.bandId).lt("startTime", Date.now()),
       )
       .order("desc")
-      .take(25);
+      .paginate(args.paginationOpts);
   },
 });
 
@@ -112,7 +126,7 @@ export const update = mutation({
 
 export async function deleteEventsByBand(
   ctx: MutationCtx,
-  bandId: Id<"bands">
+  bandId: Id<"bands">,
 ) {
   const events = await ctx.db
     .query("events")

@@ -6,7 +6,7 @@ import { v } from "convex/values";
 export async function createEventRsvps(
   ctx: MutationCtx,
   members: Doc<"memberships">[],
-  eventId: Id<"events">
+  eventId: Id<"events">,
 ) {
   await Promise.all(
     members.map((member) =>
@@ -14,15 +14,15 @@ export async function createEventRsvps(
         userId: member.userId,
         eventId: eventId,
         status: "pending",
-      })
-    )
+      }),
+    ),
   );
 }
 
 export async function backfillRsvps(
   ctx: MutationCtx,
   userId: Id<"users">,
-  events: Doc<"events">[]
+  events: Doc<"events">[],
 ) {
   if (events.length === 0) return;
 
@@ -32,8 +32,8 @@ export async function backfillRsvps(
         eventId: event._id,
         userId: userId,
         status: "pending",
-      })
-    )
+      }),
+    ),
   );
 }
 
@@ -54,7 +54,12 @@ export async function getEventRsvps(ctx: QueryCtx, eventId: Id<"events">) {
 export const updateStatus = mutation({
   args: {
     eventId: v.id("events"),
-    status: v.union(v.literal("yes"), v.literal("no"), v.literal("maybe")),
+    status: v.union(
+      v.literal("yes"),
+      v.literal("no"),
+      v.literal("maybe"),
+      v.literal("pending"),
+    ),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
@@ -62,7 +67,7 @@ export const updateStatus = mutation({
     const existingRsvp = await ctx.db
       .query("rsvps")
       .withIndex("by_user_event", (q) =>
-        q.eq("userId", user._id).eq("eventId", args.eventId)
+        q.eq("userId", user._id).eq("eventId", args.eventId),
       )
       .unique();
 
@@ -89,7 +94,7 @@ export const updateStatus = mutation({
 export async function resetRsvps(ctx: MutationCtx, eventId: Id<"events">) {
   const rsvps = await getEventRsvps(ctx, eventId);
   await Promise.all(
-    rsvps.map((r) => ctx.db.patch(r._id, { status: "pending" }))
+    rsvps.map((r) => ctx.db.patch(r._id, { status: "pending" })),
   );
 }
 
@@ -100,7 +105,7 @@ export async function deleteRsvpsByUser(ctx: MutationCtx, userId: Id<"users">) {
 
 export async function deleteRsvpsByEvent(
   ctx: MutationCtx,
-  eventId: Id<"events">
+  eventId: Id<"events">,
 ) {
   const rsvps = await getEventRsvps(ctx, eventId);
   await Promise.all(rsvps.map((r) => ctx.db.delete(r._id)));

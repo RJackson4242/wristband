@@ -1,9 +1,10 @@
+import { ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { QueryCtx } from "./_generated/server";
 
 export async function getCurrentUserOrThrow(ctx: QueryCtx) {
   const userRecord = await getCurrentUser(ctx);
-  if (!userRecord) throw new Error("Can't get current user");
+  if (!userRecord) throw new ConvexError("Can't get current user");
   return userRecord;
 }
 
@@ -26,17 +27,17 @@ export async function assertBandPermissions(
   ctx: QueryCtx,
   userId: Id<"users">,
   bandId: Id<"bands">,
-  requireAdmin: boolean = false
+  requireAdmin: boolean = false,
 ) {
   const membership = await ctx.db
     .query("memberships")
     .withIndex("by_user_band", (q) =>
-      q.eq("userId", userId).eq("bandId", bandId)
+      q.eq("userId", userId).eq("bandId", bandId),
     )
     .unique();
 
   if (!membership) {
-    throw new Error("You are not a member of this band.");
+    throw new ConvexError("You are not a member of this band.");
   }
 
   if (requireAdmin && membership.role !== "admin") {
