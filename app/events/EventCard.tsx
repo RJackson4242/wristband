@@ -164,11 +164,7 @@ export function EventCard({
                 Current: <span>{currentRsvp}</span>
               </span>
             </div>
-            <RsvpActions
-              currentRsvp={currentRsvp}
-              onRsvp={handleRsvp}
-              isDialog={true}
-            />
+            <RsvpActions currentRsvp={currentRsvp} onRsvp={handleRsvp} />
           </div>
         </div>
 

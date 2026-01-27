@@ -1,16 +1,8 @@
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, mutation, QueryCtx } from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
 import { ConvexError, v, Validator } from "convex/values";
-import { getCurrentUser, userByToken } from "./utils";
-import { getByUser, leaveBand } from "./memberships";
+import { getMembershipsByUser, leaveBand } from "./memberships";
 import { deleteRsvpsByUser } from "./rsvps";
-
-// export const get = query({
-//   args: {},
-//   handler: async (ctx) => {
-//     return await getCurrentUser(ctx);
-//   },
-// });
 
 export const store = mutation({
   args: {},
@@ -36,17 +28,17 @@ export const store = mutation({
       tokenIdentifier: identity.subject,
     };
 
-    if (user !== null) {
-      if (
-        user.displayName !== userAttributes.displayName ||
-        user.username !== userAttributes.username
-      ) {
-        await ctx.db.patch(user._id, userAttributes);
-      }
-      return user._id;
+    if (user === null) {
+      return await ctx.db.insert("users", userAttributes);
     }
 
-    return await ctx.db.insert("users", userAttributes);
+    if (
+      user.displayName !== userAttributes.displayName ||
+      user.username !== userAttributes.username
+    ) {
+      await ctx.db.patch(user._id, userAttributes);
+    }
+    return user._id;
   },
 });
 
@@ -63,7 +55,8 @@ export const upsertFromClerk = internalMutation({
       tokenIdentifier: data.id,
     };
 
-    const user = await userByToken(ctx, data.id);
+    const user = await getUserFromToken(ctx, data.id);
+
     if (user === null) {
       await ctx.db.insert("users", userAttributes);
     } else {
@@ -72,20 +65,40 @@ export const upsertFromClerk = internalMutation({
   },
 });
 
+async function getUserFromToken(ctx: QueryCtx, tokenIdentifier: string) {
+  return await ctx.db
+    .query("users")
+    .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+    .unique();
+}
+
+export async function getCurrentUserOrThrow(ctx: QueryCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) throw new ConvexError("Can't get current user");
+  const userRecord = await getUserFromToken(ctx, identity.subject);
+  if (!userRecord) throw new ConvexError("Can't get current user");
+  return userRecord!;
+}
+
 export const deleteFromClerk = internalMutation({
   args: { clerkUserId: v.string() },
   async handler(ctx, { clerkUserId }) {
-    const user = await userByToken(ctx, clerkUserId);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", clerkUserId))
+      .unique();
 
     if (!user) {
       return;
     }
 
-    const memberships = await getByUser(ctx, user._id);
+    const memberships = await getMembershipsByUser(ctx, user._id);
 
-    for (const membership of memberships) {
-      await leaveBand(ctx, membership.bandId, user._id);
-    }
+    await Promise.all([
+      ...memberships.map((membership) =>
+        leaveBand(ctx, membership.bandId, user._id),
+      ),
+    ]);
 
     await deleteRsvpsByUser(ctx, user._id);
     await ctx.db.delete(user._id);

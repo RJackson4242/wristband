@@ -6,20 +6,14 @@ type RsvpStatus = "yes" | "no" | "maybe" | "pending";
 interface RsvpActionsProps {
   currentRsvp: RsvpStatus;
   onRsvp: (e: React.MouseEvent, status: RsvpStatus) => void;
-  isDialog?: boolean;
 }
 
-export default function RsvpActions({
-  currentRsvp,
-  onRsvp,
-  isDialog = false,
-}: RsvpActionsProps) {
+export default function RsvpActions({ currentRsvp, onRsvp }: RsvpActionsProps) {
   return (
-    <div className={`${isDialog ? "justify-end" : ""}`}>
+    <div>
       <Button
         size="sm"
         variant={currentRsvp === "yes" ? "default" : "outline"}
-        className={isDialog ? "" : "flex-1"}
         onClick={(e) => onRsvp(e, "yes")}
       >
         <CheckCircle2 className="w-4 h-4 mr-2" /> Yes
@@ -27,18 +21,15 @@ export default function RsvpActions({
       <Button
         size="sm"
         variant={currentRsvp === "maybe" ? "default" : "outline"}
-        className={isDialog ? "" : "flex-1"}
         onClick={(e) => onRsvp(e, "maybe")}
       >
-        <HelpCircle className="w-4 h-4 mr-2" /> Maybe
+        <HelpCircle /> Maybe
       </Button>
       <Button
-        size="sm"
-        variant={currentRsvp === "no" ? "destructive" : "outline"}
-        className={isDialog ? "" : "flex-1"}
+        variant={currentRsvp === "no" ? "default" : "outline"}
         onClick={(e) => onRsvp(e, "no")}
       >
-        <XCircle className="w-4 h-4 mr-2" /> No
+        <XCircle /> No
       </Button>
     </div>
   );

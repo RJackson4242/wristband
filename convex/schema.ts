@@ -4,7 +4,7 @@ import { v } from "convex/values";
 const bandRoles = v.union(
   v.literal("admin"),
   v.literal("member"),
-  v.literal("invited")
+  v.literal("invited"),
 );
 
 const eventTypes = v.union(
@@ -12,14 +12,14 @@ const eventTypes = v.union(
   v.literal("gig"),
   v.literal("meeting"),
   v.literal("recording"),
-  v.literal("other")
+  v.literal("other"),
 );
 
 const rsvpStatuses = v.union(
   v.literal("yes"),
   v.literal("no"),
   v.literal("maybe"),
-  v.literal("pending")
+  v.literal("pending"),
 );
 
 export default defineSchema({
@@ -33,11 +33,14 @@ export default defineSchema({
 
   bands: defineTable({
     name: v.string(),
+    memberCount: v.number(),
   }),
 
   memberships: defineTable({
     bandId: v.id("bands"),
+    bandName: v.string(),
     userId: v.id("users"),
+    displayName: v.string(),
     role: bandRoles,
   })
     .index("by_band", ["bandId"])
@@ -46,11 +49,14 @@ export default defineSchema({
 
   events: defineTable({
     bandId: v.id("bands"),
+    bandName: v.string(),
     name: v.string(),
     type: eventTypes,
     startTime: v.number(),
     location: v.optional(v.string()),
     description: v.optional(v.string()),
+    rsvpCount: v.number(),
+    attendingCount: v.number(),
   })
     .index("by_band", ["bandId"])
     .index("by_band_time", ["bandId", "startTime"]),
@@ -59,8 +65,10 @@ export default defineSchema({
     userId: v.id("users"),
     eventId: v.id("events"),
     status: rsvpStatuses,
+    startTime: v.number(),
   })
     .index("by_event", ["eventId"])
     .index("by_user", ["userId"])
-    .index("by_user_event", ["userId", "eventId"]),
+    .index("by_user_event", ["userId", "eventId"])
+    .index("by_user_time", ["userId", "startTime"]),
 });
