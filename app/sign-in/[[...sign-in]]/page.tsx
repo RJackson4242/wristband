@@ -1,0 +1,35 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { SignIn } from "@clerk/nextjs";
+
+export default function SignInPage() {
+  return (
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome back</CardTitle>
+          <CardDescription>
+            Enter your details to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignIn
+            appearance={{
+              elements: {
+                formButtonPrimary:
+                  "bg-primary text-primary-foreground hover:bg-primary/90",
+                card: "shadow-none border-none",
+              },
+            }}
+            path="/sign-in"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

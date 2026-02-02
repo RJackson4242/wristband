@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -35,21 +37,28 @@ export function CreateBandDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Band</DialogTitle>
+          <DialogDescription>Create a new band.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div>
-            <Label htmlFor="name">Band Name</Label>
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">
+              Band Name
+            </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter band name"
+              className="col-span-3"
+              autoFocus
             />
           </div>
-          <Button type="submit" disabled={!isValid}>
-            Create
-          </Button>
+          <DialogFooter>
+            <Button type="submit" disabled={!isValid}>
+              Create Band
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

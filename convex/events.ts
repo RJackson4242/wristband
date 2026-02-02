@@ -6,7 +6,7 @@ import { assertBandPermissions, getMembershipsByBand } from "./memberships";
 import { getCurrentUserOrThrow } from "./users";
 
 const eventTypes = v.union(
-  v.literal("practice"),
+  v.literal("rehearsal"),
   v.literal("gig"),
   v.literal("meeting"),
   v.literal("recording"),
@@ -16,7 +16,7 @@ const eventTypes = v.union(
 export const create = mutation({
   args: {
     bandId: v.id("bands"),
-    name: v.string(),
+    name: v.optional(v.string()),
     type: eventTypes,
     startTime: v.number(),
     location: v.optional(v.string()),
@@ -32,7 +32,6 @@ export const create = mutation({
 
     const eventId = await ctx.db.insert("events", {
       bandId: args.bandId,
-      bandName: band.name,
       name: args.name,
       type: args.type,
       startTime: args.startTime,
@@ -135,7 +134,11 @@ export const getFutureEventsByBand = query({
   args: { bandId: v.id("bands") },
   handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
-    await assertBandPermissions(ctx, user._id, args.bandId);
+    const membership = await assertBandPermissions(ctx, user._id, args.bandId);
+    const band = await ctx.db.get(args.bandId);
+    if (!band) {
+      throw new ConvexError("Band not found");
+    }
     const events = await getFutureEvents(ctx, args.bandId);
     const eventsWithStatus = await Promise.all(
       events.map(async (event) => {
@@ -148,8 +151,11 @@ export const getFutureEventsByBand = query({
 
         return {
           ...event,
+          bandId: event.bandId,
+          bandName: band.name,
           rsvpStatus: rsvp?.status || "pending",
           rsvpId: rsvp?._id,
+          isAdmin: membership.role === "admin",
         };
       }),
     );
@@ -176,14 +182,95 @@ export const getUserUpcomingEvents = query({
 
         if (!event) return null;
 
+        const band = await ctx.db.get(event.bandId);
+        const membership = await ctx.db
+          .query("memberships")
+          .withIndex("by_user_band", (q) =>
+            q.eq("userId", user._id).eq("bandId", event.bandId),
+          )
+          .unique();
+
         return {
           ...event,
+          bandId: event.bandId,
+          bandName: band?.name || "Couldn't find band",
           rsvpStatus: rsvp.status,
           rsvpId: rsvp._id,
+          isAdmin: membership?.role === "admin",
         };
       }),
     );
 
     return eventsData.filter((e) => e !== null);
+  },
+});
+
+// ADD PAGINATED QUERY FOR PAST EVENTS
+
+export const getUserPastEvents = query({
+  args: { count: v.number() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUserOrThrow(ctx);
+
+    const rsvps = await ctx.db
+      .query("rsvps")
+      .withIndex("by_user_time", (q) =>
+        q.eq("userId", user._id).lt("startTime", Date.now()),
+      )
+      .order("desc")
+      .take(args.count);
+
+    const enrichedEvents = await Promise.all(
+      rsvps.map(async (rsvp) => {
+        const event = await ctx.db.get(rsvp.eventId);
+
+        if (!event) return null;
+
+        const band = await ctx.db.get(event.bandId);
+
+        const membership = await ctx.db
+          .query("memberships")
+          .withIndex("by_user_band", (q) =>
+            q.eq("userId", user._id).eq("bandId", event.bandId),
+          )
+          .unique();
+
+        return {
+          ...event,
+          bandId: event.bandId,
+          bandName: band?.name || "Couldn't find band",
+          rsvpStatus: rsvp.status,
+          rsvpId: rsvp._id,
+          isAdmin: membership?.role === "admin",
+        };
+      }),
+    );
+
+    return {
+      events: enrichedEvents.filter((e) => e !== null),
+    };
+  },
+});
+
+export const getEventAttendees = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const rsvps = await ctx.db
+      .query("rsvps")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    const attendees = await Promise.all(
+      rsvps.map(async (rsvp) => {
+        const user = await ctx.db.get(rsvp.userId);
+        return {
+          userId: rsvp.userId,
+          displayName: user?.displayName || "Unknown User",
+          status: rsvp.status,
+        };
+      }),
+    );
+
+    return attendees;
   },
 });

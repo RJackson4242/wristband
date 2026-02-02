@@ -14,7 +14,6 @@ import type * as http from "../http.js";
 import type * as memberships from "../memberships.js";
 import type * as rsvps from "../rsvps.js";
 import type * as users from "../users.js";
-import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -29,7 +28,6 @@ declare const fullApi: ApiFromModules<{
   memberships: typeof memberships;
   rsvps: typeof rsvps;
   users: typeof users;
-  utils: typeof utils;
 }>;
 
 /**

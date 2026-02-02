@@ -8,7 +8,7 @@ const bandRoles = v.union(
 );
 
 const eventTypes = v.union(
-  v.literal("practice"),
+  v.literal("rehearsal"),
   v.literal("gig"),
   v.literal("meeting"),
   v.literal("recording"),
@@ -38,9 +38,7 @@ export default defineSchema({
 
   memberships: defineTable({
     bandId: v.id("bands"),
-    bandName: v.string(),
     userId: v.id("users"),
-    displayName: v.string(),
     role: bandRoles,
   })
     .index("by_band", ["bandId"])
@@ -49,8 +47,7 @@ export default defineSchema({
 
   events: defineTable({
     bandId: v.id("bands"),
-    bandName: v.string(),
-    name: v.string(),
+    name: v.optional(v.string()),
     type: eventTypes,
     startTime: v.number(),
     location: v.optional(v.string()),

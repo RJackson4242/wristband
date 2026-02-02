@@ -2,11 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, MutationCtx, query } from "./_generated/server";
 import { deleteEventsByBand, getFutureEvents } from "./events";
 import { Id } from "./_generated/dataModel";
-import {
-  getMembershipsByUser,
-  assertBandPermissions,
-  getMembershipsByBand,
-} from "./memberships";
+import { getMembershipsByUser, assertBandPermissions } from "./memberships";
 import { getCurrentUserOrThrow } from "./users";
 
 export const create = mutation({
@@ -21,9 +17,7 @@ export const create = mutation({
 
     await ctx.db.insert("memberships", {
       bandId,
-      bandName: args.name,
       userId: user._id,
-      displayName: user.displayName,
       role: "admin",
     });
 
@@ -40,22 +34,6 @@ export const update = mutation({
     await ctx.db.patch(args.id, {
       name: args.name,
     });
-
-    const memberships = await getMembershipsByBand(ctx, args.id);
-
-    const events = await await ctx.db
-      .query("events")
-      .withIndex("by_band", (q) => q.eq("bandId", args.id))
-      .collect();
-
-    await Promise.all([
-      ...memberships.map((membership) =>
-        ctx.db.patch(membership._id, { bandName: args.name }),
-      ),
-      ...events.map((event) =>
-        ctx.db.patch(event._id, { bandName: args.name }),
-      ),
-    ]);
   },
 });
 

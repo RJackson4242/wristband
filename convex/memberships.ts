@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, MutationCtx, QueryCtx } from "./_generated/server";
+import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { deleteBand } from "./bands";
 import { Id } from "./_generated/dataModel";
 import { backfillRsvps } from "./rsvps";
@@ -36,9 +36,7 @@ export const invite = mutation({
 
     return await ctx.db.insert("memberships", {
       userId: user._id,
-      displayName: user.displayName,
       bandId: args.bandId,
-      bandName: band.name,
       role: "invited",
     });
   },
@@ -50,6 +48,24 @@ export async function getMembershipsByUser(ctx: QueryCtx, userId: Id<"users">) {
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 }
+
+export const getUserMemberships = query({
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const memberships = await getMembershipsByUser(ctx, user._id);
+    const membershipsWithBands = await Promise.all(
+      memberships.map(async (membership) => {
+        const band = await ctx.db.get(membership.bandId);
+        return {
+          ...membership,
+          bandName: band?.name || "Could not find band",
+        };
+      }),
+    );
+
+    return membershipsWithBands;
+  },
+});
 
 export async function getMembershipsByBand(ctx: QueryCtx, bandId: Id<"bands">) {
   return await ctx.db
