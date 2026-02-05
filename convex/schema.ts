@@ -40,10 +40,13 @@ export default defineSchema({
     bandId: v.id("bands"),
     userId: v.id("users"),
     role: bandRoles,
+    invitedBy: v.optional(v.id("users")),
   })
     .index("by_band", ["bandId"])
     .index("by_user", ["userId"])
-    .index("by_user_band", ["userId", "bandId"]),
+    .index("by_user_band", ["userId", "bandId"])
+    .index("by_user_role", ["userId", "role"])
+    .index("by_band_role", ["bandId", "role"]),
 
   events: defineTable({
     bandId: v.id("bands"),

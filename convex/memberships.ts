@@ -2,8 +2,8 @@ import { ConvexError, v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { deleteBand } from "./bands";
 import { Id } from "./_generated/dataModel";
-import { backfillRsvps } from "./rsvps";
 import { getCurrentUserOrThrow } from "./users";
+import { getFutureEventsByBand } from "./events";
 
 export const invite = mutation({
   args: { username: v.string(), bandId: v.id("bands") },
@@ -17,12 +17,12 @@ export const invite = mutation({
       .unique();
 
     if (!user) {
-      return new ConvexError("User not found");
+      throw new ConvexError("User not found");
     }
 
     const band = await ctx.db.get(args.bandId);
     if (!band) {
-      return new ConvexError("Band not found");
+      throw new ConvexError("Band not found");
     }
 
     const inviteeMembership = await ctx.db
@@ -32,45 +32,52 @@ export const invite = mutation({
       )
       .unique();
     if (inviteeMembership)
-      return new ConvexError("User is already member or invited.");
+      throw new ConvexError("User is already member or invited.");
 
     return await ctx.db.insert("memberships", {
       userId: user._id,
       bandId: args.bandId,
       role: "invited",
+      invitedBy: currentUser._id,
     });
   },
 });
+
+export async function getInvitesByUser(ctx: QueryCtx, userId: Id<"users">) {
+  return await ctx.db
+    .query("memberships")
+    .withIndex("by_user_role", (q) =>
+      q.eq("userId", userId).eq("role", "invited"),
+    )
+    .collect();
+}
 
 export async function getMembershipsByUser(ctx: QueryCtx, userId: Id<"users">) {
   return await ctx.db
     .query("memberships")
     .withIndex("by_user", (q) => q.eq("userId", userId))
+    .filter((q) =>
+      q.or(q.eq(q.field("role"), "admin"), q.eq(q.field("role"), "member")),
+    )
     .collect();
 }
 
-export const getUserMemberships = query({
-  handler: async (ctx) => {
-    const user = await getCurrentUserOrThrow(ctx);
-    const memberships = await getMembershipsByUser(ctx, user._id);
-    const membershipsWithBands = await Promise.all(
-      memberships.map(async (membership) => {
-        const band = await ctx.db.get(membership.bandId);
-        return {
-          ...membership,
-          bandName: band?.name || "Could not find band",
-        };
-      }),
-    );
-
-    return membershipsWithBands;
-  },
-});
+export async function getInvitesByBand(ctx: QueryCtx, bandId: Id<"bands">) {
+  return await ctx.db
+    .query("memberships")
+    .withIndex("by_band_role", (q) =>
+      q.eq("bandId", bandId).eq("role", "invited"),
+    )
+    .collect();
+}
 
 export async function getMembershipsByBand(ctx: QueryCtx, bandId: Id<"bands">) {
   return await ctx.db
     .query("memberships")
     .withIndex("by_band", (q) => q.eq("bandId", bandId))
+    .filter((q) =>
+      q.or(q.eq(q.field("role"), "admin"), q.eq(q.field("role"), "member")),
+    )
     .collect();
 }
 
@@ -94,15 +101,13 @@ export async function assertBandPermissions(
   }
 
   if (!allowedRoles.includes(membership.role)) {
+    if (membership.role === "invited" && allowedRoles.includes("member")) {
+      throw new ConvexError("You must accept your invite to access this.");
+    }
     if (allowedRoles.includes("admin")) {
       throw new ConvexError("You must be an admin to perform this action.");
-    } else if (allowedRoles.includes("member")) {
-      throw new ConvexError("You must accept your invite to access this.");
-    } else {
-      throw new ConvexError(
-        "You do not have permission to perform this action.",
-      );
     }
+    throw new ConvexError("You do not have permission to perform this action.");
   }
 
   return membership;
@@ -111,21 +116,51 @@ export async function assertBandPermissions(
 export const accept = mutation({
   args: { id: v.id("memberships") },
   handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
-    const membership = await ctx.db.get(args.id);
-    if (!membership) throw new ConvexError("Invite does not exist.");
-    if (membership.userId != user._id)
-      throw new ConvexError("This isn't your invite.");
-    const band = await ctx.db.get(membership.bandId);
-    if (!band) throw new ConvexError("Band does not exist.");
+    const [user, invite] = await Promise.all([
+      getCurrentUserOrThrow(ctx),
+      ctx.db.get(args.id),
+    ]);
 
-    await ctx.db.patch(membership._id, { role: "member" });
-    await ctx.db.patch(band._id, {
-      memberCount: band.memberCount + 1,
-    });
-    await backfillRsvps(ctx, user._id, membership.bandId);
+    if (!invite) throw new ConvexError("Invite not found");
+
+    const [band, events] = await Promise.all([
+      ctx.db.get(invite.bandId),
+      getFutureEventsByBand(ctx, invite.bandId),
+    ]);
+
+    if (!band) {
+      throw new ConvexError("Band not found");
+    }
+
+    await Promise.all([
+      ctx.db.patch(invite._id, { role: "member" }),
+      ctx.db.patch(invite.bandId, {
+        memberCount: band.memberCount + 1,
+      }),
+      ...events.map(async (event) => {
+        await Promise.all([
+          ctx.db.insert("rsvps", {
+            eventId: event._id,
+            userId: user._id,
+            status: "pending",
+            startTime: event.startTime,
+          }),
+          ctx.db.patch(event._id, {
+            rsvpCount: event.rsvpCount + 1,
+          }),
+        ]);
+      }),
+    ]);
 
     return "Invite accepted.";
+  },
+});
+
+export const decline = mutation({
+  args: { id: v.id("memberships") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+    return "Invite Declined";
   },
 });
 
@@ -134,7 +169,7 @@ export const promote = mutation({
   handler: async (ctx, args) => {
     const membershipToPromote = await ctx.db.get(args.id);
     if (!membershipToPromote || membershipToPromote.role === "invited")
-      throw new Error("Member not in band.");
+      return "Membership does not exist or is not promotable.";
     const currentUser = await getCurrentUserOrThrow(ctx);
     await assertBandPermissions(
       ctx,
@@ -152,37 +187,72 @@ export async function leaveBand(
   bandId: Id<"bands">,
   userId: Id<"users">,
 ) {
-  const membership = await assertBandPermissions(ctx, userId, bandId);
-
   const allMembers = await ctx.db
     .query("memberships")
     .withIndex("by_band", (q) => q.eq("bandId", bandId))
     .collect();
+
+  const membership = allMembers.find((m) => m.userId === userId);
+
+  if (!membership) {
+    throw new ConvexError("You are not a member of this band");
+  }
 
   if (allMembers.length === 1) {
     await deleteBand(ctx, bandId);
     return "Band deleted as you were the last member.";
   }
 
-  const band = await ctx.db.get(membership.bandId);
-  if (!band) throw new ConvexError("Band does not exist.");
-  await ctx.db.patch(band._id, {
-    memberCount: band.memberCount - 1,
-  });
-
   if (membership.role === "admin") {
     const otherAdmins = allMembers.filter(
-      (m) => m.userId !== membership.userId && m.role === "admin",
+      (m) => m.userId !== userId && m.role === "admin",
     );
 
     if (otherAdmins.length === 0) {
       const others = allMembers.filter((m) => m.userId !== userId);
       const heir = others.sort((a, b) => a._creationTime - b._creationTime)[0];
-      await ctx.db.patch(heir._id, { role: "admin" });
+      if (heir) {
+        await ctx.db.patch(heir._id, { role: "admin" });
+      }
     }
   }
 
+  const futureEvents = await getFutureEventsByBand(ctx, bandId);
+
+  await Promise.all(
+    futureEvents.map(async (event) => {
+      const rsvp = await ctx.db
+        .query("rsvps")
+        .withIndex("by_user_event", (q) =>
+          q.eq("userId", userId).eq("eventId", event._id),
+        )
+        .unique();
+
+      if (rsvp) {
+        const updates: { rsvpCount: number; attendingCount?: number } = {
+          rsvpCount: Math.max(0, event.rsvpCount - 1),
+        };
+
+        if (rsvp.status === "yes") {
+          updates.attendingCount = Math.max(0, event.attendingCount - 1);
+        }
+
+        await ctx.db.patch(event._id, updates);
+        await ctx.db.delete(rsvp._id);
+      }
+    }),
+  );
+
+  const band = await ctx.db.get(bandId);
+  if (band) {
+    await ctx.db.patch(bandId, {
+      memberCount: Math.max(0, band.memberCount - 1),
+    });
+  }
+
   await ctx.db.delete(membership._id);
+
+  return "Band left.";
 }
 
 export const leave = mutation({
@@ -194,41 +264,111 @@ export const leave = mutation({
 });
 
 export const kick = mutation({
-  args: { bandId: v.id("bands"), userId: v.id("users") },
+  args: { id: v.id("memberships") },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-    await assertBandPermissions(ctx, currentUser._id, args.bandId, ["admin"]);
+    const [currentUser, targetMembership] = await Promise.all([
+      getCurrentUserOrThrow(ctx),
+      ctx.db.get(args.id),
+    ]);
 
-    const targetMembership = await assertBandPermissions(
-      ctx,
-      args.userId,
-      args.bandId,
+    if (!targetMembership)
+      throw new ConvexError("Target membership not found.");
+    if (targetMembership.role === "admin")
+      throw new ConvexError("Target is admin.");
+    if (targetMembership.role === "invited")
+      throw new ConvexError("Target is not yet a member.");
+
+    const [, band, events] = await Promise.all([
+      assertBandPermissions(ctx, currentUser._id, targetMembership.bandId, [
+        "admin",
+      ]),
+      ctx.db.get(targetMembership.bandId),
+      ctx.db
+        .query("events")
+        .withIndex("by_band", (q) => q.eq("bandId", targetMembership.bandId))
+        .collect(),
+    ]);
+
+    if (!band) throw new ConvexError("Band does not exist.");
+
+    const rsvpsToDelete = await Promise.all(
+      events.map(async (event) => {
+        const rsvp = await ctx.db
+          .query("rsvps")
+          .withIndex("by_user_event", (q) =>
+            q.eq("userId", targetMembership.userId).eq("eventId", event._id),
+          )
+          .unique();
+
+        return rsvp ? { rsvp, event } : null;
+      }),
     );
 
-    if (targetMembership.role === "admin")
-      throw new ConvexError("Target is admin");
+    const validRsvps = rsvpsToDelete.filter(
+      (item): item is NonNullable<typeof item> => item !== null,
+    );
 
-    const band = await ctx.db.get(targetMembership.bandId);
-    if (!band) throw new ConvexError("Band does not exist.");
-    await ctx.db.patch(band._id, {
-      memberCount: band.memberCount - 1,
-    });
+    await Promise.all([
+      ctx.db.delete(targetMembership._id),
 
-    const events = await ctx.db
-      .query("events")
-      .withIndex("by_band", (q) => q.eq("bandId", args.bandId))
-      .collect();
+      ctx.db.patch(band._id, {
+        memberCount: Math.max(0, band.memberCount - 1),
+      }),
 
-    for (const event of events) {
-      const rsvp = await ctx.db
-        .query("rsvps")
-        .withIndex("by_user_event", (q) =>
-          q.eq("userId", args.userId).eq("eventId", event._id),
-        )
-        .unique();
-      if (rsvp) await ctx.db.delete(rsvp._id);
-    }
+      ...validRsvps.map(async ({ rsvp, event }) => {
+        await ctx.db.patch(event._id, {
+          rsvpCount: Math.max(0, event.rsvpCount - 1),
+          attendingCount:
+            rsvp.status === "yes"
+              ? Math.max(0, event.attendingCount - 1)
+              : event.attendingCount,
+        });
 
-    await ctx.db.delete(targetMembership._id);
+        await ctx.db.delete(rsvp._id);
+      }),
+    ]);
+  },
+});
+
+export const getUserMemberships = query({
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const memberships = await getMembershipsByUser(ctx, user._id);
+    return await Promise.all(
+      memberships.map(async (membership) => {
+        const band = await ctx.db.get(membership.bandId);
+        if (!band) return null;
+        return {
+          ...membership,
+          bandName: band.name,
+        };
+      }),
+    );
+  },
+});
+
+export const getUserInvites = query({
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const memberships = await getInvitesByUser(ctx, user._id);
+
+    const data = await Promise.all(
+      memberships.map(async (membership) => {
+        const [band, inviter] = await Promise.all([
+          ctx.db.get(membership.bandId),
+          membership.invitedBy ? ctx.db.get(membership.invitedBy) : null,
+        ]);
+
+        if (!band) return null;
+
+        return {
+          ...membership,
+          bandName: band.name,
+          invitorName: inviter?.displayName || "Unknown",
+        };
+      }),
+    );
+
+    return data.filter((m): m is NonNullable<typeof m> => m !== null);
   },
 });

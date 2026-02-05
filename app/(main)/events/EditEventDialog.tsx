@@ -7,7 +7,9 @@ import {
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
+import { toast } from "sonner";
 import { EventForm, EventFormData } from "./EventForm";
+import { ConvexError } from "convex/values";
 
 interface EditEventDialogProps {
   open: boolean;
@@ -32,13 +34,24 @@ export function EditEventDialog({
   const updateEvent = useMutation(api.events.update);
 
   const handleSave = async (data: EventFormData) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { bandId, ...updates } = data;
-    await updateEvent({
-      eventId,
-      ...updates,
-    });
-    onOpenChange(false);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { bandId, ...updates } = data;
+
+      await updateEvent({
+        eventId,
+        ...updates,
+      });
+
+      toast.success("Event updated");
+      onOpenChange(false);
+    } catch (error) {
+      const msg =
+        error instanceof ConvexError
+          ? (error.data as string)
+          : "Unexpected error";
+      toast.error("Action Failed", { description: msg });
+    }
   };
 
   return (

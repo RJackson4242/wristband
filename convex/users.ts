@@ -1,8 +1,11 @@
 import { internalMutation, mutation, QueryCtx } from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
 import { ConvexError, v, Validator } from "convex/values";
-import { getMembershipsByUser, leaveBand } from "./memberships";
-import { deleteRsvpsByUser } from "./rsvps";
+import {
+  getInvitesByUser,
+  getMembershipsByUser,
+  leaveBand,
+} from "./memberships";
 
 export const store = mutation({
   args: {},
@@ -88,19 +91,39 @@ export const deleteFromClerk = internalMutation({
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", clerkUserId))
       .unique();
 
-    if (!user) {
-      return;
-    }
+    if (!user) return;
 
-    const memberships = await getMembershipsByUser(ctx, user._id);
+    const [memberships, invites, rsvps] = await Promise.all([
+      getMembershipsByUser(ctx, user._id),
+      getInvitesByUser(ctx, user._id),
+      ctx.db
+        .query("rsvps")
+        .withIndex("by_user_event", (q) => q.eq("userId", user._id))
+        .collect(),
+    ]);
+
+    await Promise.all(
+      rsvps.map(async (r) => {
+        const event = await ctx.db.get(r.eventId);
+        if (event) {
+          await ctx.db.patch(event._id, {
+            rsvpCount: Math.max(0, event.rsvpCount - 1),
+            attendingCount:
+              r.status === "yes"
+                ? Math.max(0, event.attendingCount - 1)
+                : event.attendingCount,
+          });
+        }
+        await ctx.db.delete(r._id);
+      }),
+    );
 
     await Promise.all([
       ...memberships.map((membership) =>
         leaveBand(ctx, membership.bandId, user._id),
       ),
+      ...invites.map((invite) => ctx.db.delete(invite._id)),
+      ctx.db.delete(user._id),
     ]);
-
-    await deleteRsvpsByUser(ctx, user._id);
-    await ctx.db.delete(user._id);
   },
 });

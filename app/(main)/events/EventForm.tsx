@@ -105,11 +105,17 @@ export function EventForm({
                 <SelectValue placeholder="Select band" />
               </SelectTrigger>
               <SelectContent>
-                {userBands.map((membership) => (
-                  <SelectItem key={membership.bandId} value={membership.bandId}>
-                    {membership.bandName}
-                  </SelectItem>
-                ))}
+                {userBands.map(
+                  (membership) =>
+                    membership && (
+                      <SelectItem
+                        key={membership.bandId}
+                        value={membership.bandId}
+                      >
+                        {membership.bandName}
+                      </SelectItem>
+                    ),
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -122,7 +128,7 @@ export function EventForm({
         </Label>
         <div className="col-span-3">
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full capitalize">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>

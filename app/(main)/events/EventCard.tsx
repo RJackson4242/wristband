@@ -39,6 +39,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EditEventDialog } from "./EditEventDialog";
+import { ConvexError } from "convex/values";
+import { toast } from "sonner";
 
 type RsvpStatus = "yes" | "no" | "maybe" | "pending";
 
@@ -51,7 +53,7 @@ interface EventCardProps {
   description?: string;
   startTime: number;
   location?: string;
-  rsvpStatus: RsvpStatus;
+  rsvpStatus: RsvpStatus | undefined;
   attendingCount: number;
   rsvpCount: number;
   isAdmin: boolean;
@@ -79,15 +81,34 @@ export function EventCard({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const setRsvp = useMutation(api.rsvps.updateStatus);
   const deleteEvent = useMutation(api.events.remove);
-  const handleRsvp = (e: React.MouseEvent, status: RsvpStatus) => {
-    e.stopPropagation(); // Prevents the card click (Dialog)
-    setRsvp({ eventId: _id, status });
+
+  const handleRsvp = async (e: React.MouseEvent, status: RsvpStatus) => {
+    e.stopPropagation();
+    try {
+      await setRsvp({ eventId: _id, status });
+      toast.success("RSVP updated");
+    } catch (error) {
+      const msg =
+        error instanceof ConvexError
+          ? (error.data as string)
+          : "Unexpected error";
+      toast.error("Action Failed", { description: msg });
+    }
   };
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to cancel this event?")) {
-      await deleteEvent({ eventId: _id });
-      setIsOpen(false);
+      try {
+        await deleteEvent({ eventId: _id });
+        toast.success("Event cancelled");
+        setIsOpen(false);
+      } catch (error) {
+        const msg =
+          error instanceof ConvexError
+            ? (error.data as string)
+            : "Unexpected error";
+        toast.error("Action Failed", { description: msg });
+      }
     }
   };
 
@@ -104,15 +125,19 @@ export function EventCard({
 
                 <div className="flex gap-2 shrink-0">
                   <Badge className="capitalize">{type}</Badge>
-                  <Badge variant={rsvpStatus === "yes" ? "default" : "outline"}>
-                    {rsvpStatus === "pending"
-                      ? "Pending"
-                      : rsvpStatus === "maybe"
-                        ? "Maybe Going"
-                        : rsvpStatus === "no"
-                          ? "Not Going"
-                          : "Going"}
-                  </Badge>
+                  {rsvpStatus && (
+                    <Badge
+                      variant={rsvpStatus === "yes" ? "default" : "outline"}
+                    >
+                      {rsvpStatus === "pending"
+                        ? "Pending"
+                        : rsvpStatus === "maybe"
+                          ? "Maybe Going"
+                          : rsvpStatus === "no"
+                            ? "Not Going"
+                            : "Going"}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
@@ -132,13 +157,14 @@ export function EventCard({
                   <span className="truncate">{location}</span>
                 </div>
               )}
-              <div className="flex items-center gap-1">
-                <Users className="w-4 h-4" />
-                <span>
-                  {attendingCount} / {rsvpCount} Attending
-                </span>
-              </div>
-
+              {rsvpCount !== 0 && (
+                <div className="flex items-center gap-1">
+                  <Users className="w-4 h-4" />
+                  <span>
+                    {attendingCount} / {rsvpCount} Attending
+                  </span>
+                </div>
+              )}
               {description && (
                 <p className="line-clamp-2 text-muted-foreground mt-2">
                   {description}
@@ -168,21 +194,23 @@ export function EventCard({
 
               <div className="flex gap-2 shrink-0 pr-8">
                 <Badge className="capitalize">{type}</Badge>
-                <Badge variant={rsvpStatus === "yes" ? "default" : "outline"}>
-                  {rsvpStatus === "pending"
-                    ? "Pending"
-                    : rsvpStatus === "maybe"
-                      ? "Maybe Going"
-                      : rsvpStatus === "no"
-                        ? "Not Going"
-                        : "Going"}
-                </Badge>
+                {rsvpStatus && (
+                  <Badge variant={rsvpStatus === "yes" ? "default" : "outline"}>
+                    {rsvpStatus === "pending"
+                      ? "Pending"
+                      : rsvpStatus === "maybe"
+                        ? "Maybe Going"
+                        : rsvpStatus === "no"
+                          ? "Not Going"
+                          : "Going"}
+                  </Badge>
+                )}
                 {isAdmin && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-6 w-6">
                         <MoreHorizontal className="w-4 h-4" />
-                        <span className="sr-only">Menu</span>
+                        <span className="sr-only">Event Actions</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-auto">
@@ -238,19 +266,15 @@ export function EventCard({
                 </p>
               </div>
             )}
-            {disableRSVP === false && (
-              <>
-                <Separator className="my-1" />
-                <div className="space-y-2">
-                  <div>
-                    <span className="font-medium text-sm">Update Status</span>
-                  </div>
-                  <div className="flex justify-center">
-                    <RsvpActions currentRsvp={rsvpStatus} onRsvp={handleRsvp} />
-                  </div>
-                </div>
-              </>
-            )}
+            <Separator className="my-1" />
+            <div className="space-y-2">
+              <div>
+                <span className="font-medium text-sm">Update Status</span>
+              </div>
+              <div className="flex justify-center">
+                <RsvpActions currentRsvp={rsvpStatus} onRsvp={handleRsvp} />
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

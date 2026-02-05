@@ -10,20 +10,14 @@
 - [x] Authentication
 - [x] Database Schema
 - [x] Convex Actions
-- [ ] UI
+- [x] UI
+- [x] Error Handling
 
 ### Later
 
-- [ ] Session Musicians
+- [ ] Profile Photos, Band/Event Colouring
 - [ ] Setlists
-- [ ] Stored tracklists
-
-## UI
-
-- [x] Login / Sign-up Page
-- [x] My Bands
-- [ ] My Events
-- [ ] My Invites
-- [ ] Band Page
-- [ ] Invite Form
-- [x] Event Form
+- [ ] Multiple Bands per Event + Session Musicians
+- [ ] Messaging
+- [ ] Mobile App
+- [ ] Further Social Elements (User Profiles, Band Profiles, Gig Discovery)

@@ -1,9 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, MutationCtx, query } from "./_generated/server";
-import { deleteEventsByBand, getFutureEvents } from "./events";
+import { getFutureEventsByBand } from "./events";
 import { Id } from "./_generated/dataModel";
-import { getMembershipsByUser, assertBandPermissions } from "./memberships";
+import {
+  getMembershipsByUser,
+  assertBandPermissions,
+  getMembershipsByBand,
+} from "./memberships";
 import { getCurrentUserOrThrow } from "./users";
+import { getEventRsvps } from "./rsvps";
 
 export const create = mutation({
   args: { name: v.string() },
@@ -38,28 +43,26 @@ export const update = mutation({
 });
 
 export async function deleteBand(ctx: MutationCtx, bandId: Id<"bands">) {
-  await deleteEventsByBand(ctx, bandId);
+  const events = await ctx.db
+    .query("events")
+    .withIndex("by_band", (q) => q.eq("bandId", bandId))
+    .collect();
 
   const memberships = await ctx.db
     .query("memberships")
     .withIndex("by_band", (q) => q.eq("bandId", bandId))
     .collect();
 
-  for (const m of memberships) {
-    await ctx.db.delete(m._id);
-  }
-
-  await ctx.db.delete(bandId);
+  await Promise.all([
+    ...events.map(async (event) => {
+      const rsvps = await getEventRsvps(ctx, event._id);
+      await Promise.all(rsvps.map((r) => ctx.db.delete(r._id)));
+      await ctx.db.delete(event._id);
+    }),
+    ...memberships.map((m) => ctx.db.delete(m._id)),
+    ctx.db.delete(bandId),
+  ]);
 }
-
-export const remove = mutation({
-  args: { id: v.id("bands") },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
-    await assertBandPermissions(ctx, user._id, args.id, ["admin"]);
-    await deleteBand(ctx, args.id);
-  },
-});
 
 export const getBandCards = query({
   handler: async (ctx) => {
@@ -74,7 +77,7 @@ export const getBandCards = query({
           if (!band) return null;
 
           const upcomingEventsCount = (
-            await getFutureEvents(ctx, membership.bandId)
+            await getFutureEventsByBand(ctx, membership.bandId)
           ).length;
 
           return {
@@ -96,18 +99,30 @@ export const getBandPage = query({
   args: { bandId: v.id("bands") },
   handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
-    const membership = await assertBandPermissions(ctx, user._id, args.bandId);
-    const band = await ctx.db.get(args.bandId);
-    if (!band) throw new ConvexError("Band not found.");
 
-    const memberships = await ctx.db
-      .query("memberships")
-      .withIndex("by_band", (q) => q.eq("bandId", args.bandId))
-      .collect();
+    const membership = await assertBandPermissions(ctx, user._id, args.bandId);
+
+    const band = await ctx.db.get(args.bandId);
+    if (!band) {
+      throw new ConvexError("Could Not Find Band");
+    }
+
+    const memberships = await getMembershipsByBand(ctx, args.bandId);
+
+    const membersWithDetails = await Promise.all(
+      memberships.map(async (m) => {
+        const memberUser = await ctx.db.get(m.userId);
+        return {
+          ...m,
+          username: memberUser?.username || "Unknown",
+          displayName: memberUser?.displayName || "Unknown User",
+        };
+      }),
+    );
 
     return {
       ...band,
-      members: memberships,
+      members: membersWithDetails,
       currentUser: user._id,
       isAdmin: membership.role === "admin",
     };

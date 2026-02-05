@@ -1,4 +1,4 @@
-import { SignIn } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { VenetianMask } from "lucide-react";
 
-export default function SignInPage() {
+export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-12 bg-muted/20">
       <div className="w-full max-w-sm space-y-6">
@@ -21,13 +21,11 @@ export default function SignInPage() {
 
         <Card className="border-border/50 shadow-lg p-0 pt-6">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to your account to continue
-            </CardDescription>
+            <CardTitle className="text-xl">Create an account</CardTitle>
+            <CardDescription>Enter your details to get started</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center p-0">
-            <SignIn
+            <SignUp
               appearance={{
                 elements: {
                   formButtonPrimary:
@@ -38,7 +36,7 @@ export default function SignInPage() {
                   rootBox: "w-full",
                 },
               }}
-              path="/sign-in"
+              path="/sign-up"
             />
           </CardContent>
         </Card>

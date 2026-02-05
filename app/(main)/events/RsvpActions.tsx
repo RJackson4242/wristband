@@ -4,7 +4,7 @@ import { CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 type RsvpStatus = "yes" | "no" | "maybe" | "pending";
 
 interface RsvpActionsProps {
-  currentRsvp: RsvpStatus;
+  currentRsvp: RsvpStatus | undefined;
   onRsvp: (e: React.MouseEvent, status: RsvpStatus) => void;
 }
 

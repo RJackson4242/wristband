@@ -12,11 +12,15 @@ export function AttendeeList({ eventId }: AttendeeListProps) {
   const attendees = useQuery(api.events.getEventAttendees, { eventId });
 
   if (attendees === undefined) {
-    return "Loading...";
+    return (
+      <span className="font-medium text-muted-foreground">Loading...</span>
+    );
   }
 
   if (attendees.length === 0) {
-    return "No RSVPs yet.";
+    return (
+      <span className="font-medium text-muted-foreground">No RSVPs yet.</span>
+    );
   }
 
   return (

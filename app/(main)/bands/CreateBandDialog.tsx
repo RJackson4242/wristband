@@ -3,30 +3,34 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
+import { BandForm } from "./BandForm";
+import { toast } from "sonner";
+import { ConvexError } from "convex/values";
 
 export function CreateBandDialog() {
-  const [name, setName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const isValid = name.trim().length > 0;
   const createBand = useMutation(api.bands.create);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isValid) return;
-    await createBand({ name });
-    setIsOpen(false);
-    setName("");
-  }
+  const handleCreate = async (name: string) => {
+    try {
+      await createBand({ name });
+      toast.success("Band created");
+      setIsOpen(false);
+    } catch (error) {
+      const msg =
+        error instanceof ConvexError
+          ? (error.data as string)
+          : "Unexpected error";
+      toast.error("Action failed", { description: msg });
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -40,26 +44,7 @@ export function CreateBandDialog() {
           <DialogDescription>Create a new band.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Band Name
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter band name"
-              className="col-span-3"
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={!isValid}>
-              Create Band
-            </Button>
-          </DialogFooter>
-        </form>
+        <BandForm onSubmit={handleCreate} />
       </DialogContent>
     </Dialog>
   );
