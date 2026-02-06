@@ -1,19 +1,40 @@
-# Wristband
+![Bandiit logo](./Bandiit%20logo.png)
 
-## Todo
+# Bandiit
 
-### MVP
+Bandiit is a lightweight SaaS application to help bands organize their schedules and track attendance.
+Built using NextJS, Convex, and Clerk, Bandiit offers responsive real-time updates on a polished UI.
 
-- [x] Initialisation
-- [x] Deployment
-- [x] Database Connection
-- [x] Authentication
-- [x] Database Schema
-- [x] Convex Actions
-- [x] UI
-- [x] Error Handling
+## Features
 
-### Later
+- **Band Management**: Create and manage multiple bands. Invite members and assign roles (Admin/Member).
+- **Event Scheduling**: Create events with details like location, time, and type (Gig, Rehearsal, etc.).
+- **Smart RSVPs**: Real-time RSVP tracking for every member that updates as needed.
+- **Event History**: Automatic archival of band activities for historical reference.
+- **Mobile-first UI**: Responsive interface built with Tailwind CSS and Shadcn UI.
+
+## Tech-Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Backend and Database**: Convex
+- **Authentication**: Clerk
+- **Styling**: CSS
+- **UI Components**: Shadcn UI
+- **Icon Kit**: Lucide React
+
+## Version Updates
+
+**v0.1.1 - Hotfix**
+
+- Modified how RSVPs respond to user deletion and leaving band
+
+**v0.1.0 - Initial Release**
+
+- Core functionality: Create/edit bands, invite via username, schedule events.
+- RSVP system: automatically prompt band members to respond with availability upon event create and update.
+- Role based permissions: user / admin
+
+## Planned Features
 
 - [ ] Profile Photos, Band/Event Colouring
 - [ ] Setlists
