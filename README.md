@@ -24,10 +24,6 @@ Built using NextJS, Convex, and Clerk, Bandiit offers responsive real-time updat
 
 ## Version Updates
 
-**v0.1.1 - Hotfix**
-
-- Modified how RSVPs respond to user deletion and leaving band
-
 **v0.1.0 - Initial Release**
 
 - Core functionality: Create/edit bands, invite via username, schedule events.
