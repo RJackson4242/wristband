@@ -18,7 +18,7 @@ Built using NextJS, Convex, and Clerk, Bandiit offers responsive real-time updat
 - **Framework**: Next.js 16 (App Router)
 - **Backend and Database**: Convex
 - **Authentication**: Clerk
-- **Styling**: CSS
+- **Styling**: Tailwind CSS
 - **UI Components**: Shadcn UI
 - **Icon Kit**: Lucide React
 
