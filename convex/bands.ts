@@ -6,6 +6,7 @@ import {
   getMembershipsByUser,
   assertBandPermissions,
   getMembershipsByBand,
+  getInvitesByBand,
 } from "./memberships";
 import { getCurrentUserOrThrow } from "./users";
 import { getEventRsvps } from "./rsvps";
@@ -107,7 +108,10 @@ export const getBandPage = query({
       throw new ConvexError("Could Not Find Band");
     }
 
-    const memberships = await getMembershipsByBand(ctx, args.bandId);
+    const [memberships, invites] = await Promise.all([
+      getMembershipsByBand(ctx, args.bandId),
+      getInvitesByBand(ctx, args.bandId),
+    ]);
 
     const membersWithDetails = await Promise.all(
       memberships.map(async (m) => {
@@ -120,11 +124,32 @@ export const getBandPage = query({
       }),
     );
 
+    const invitesWithDetails = await Promise.all(
+      invites.map(async (invite) => {
+        const inviter = invite.invitedBy
+          ? await ctx.db.get(invite.invitedBy)
+          : null;
+
+        const invited = invite.userId ? await ctx.db.get(invite.userId) : null;
+
+        if (!invited) return null;
+
+        return {
+          ...invite,
+          title: invited.displayName,
+          invitorName: inviter?.displayName || "Unknown",
+        };
+      }),
+    );
+
     return {
       ...band,
       members: membersWithDetails,
       currentUser: user._id,
       isAdmin: membership.role === "admin",
+      invites: invitesWithDetails.filter(
+        (m): m is NonNullable<typeof m> => m !== null,
+      ),
     };
   },
 });

@@ -113,7 +113,34 @@ export const update = mutation({
         promises.push(
           getEventRsvps(ctx, event._id).then(async (rsvps) => {
             await Promise.all(
-              rsvps.map((r) => ctx.db.patch(r._id, { status: "pending" })),
+              rsvps.map(async (r) => {
+                const membership = await ctx.db
+                  .query("memberships")
+                  .withIndex("by_user_band", (q) =>
+                    q.eq("userId", r.userId).eq("bandId", event.bandId),
+                  )
+                  .unique();
+                if (membership === null || membership.role === "invited") {
+                  const updates: {
+                    rsvpCount: number;
+                    attendingCount?: number;
+                  } = {
+                    rsvpCount: Math.max(0, event.rsvpCount - 1),
+                  };
+
+                  if (r.status === "yes") {
+                    updates.attendingCount = Math.max(
+                      0,
+                      event.attendingCount - 1,
+                    );
+                  }
+
+                  await ctx.db.patch(event._id, updates);
+                  await ctx.db.delete(r._id);
+                } else {
+                  ctx.db.patch(r._id, { status: "pending" });
+                }
+              }),
             );
           }),
         );

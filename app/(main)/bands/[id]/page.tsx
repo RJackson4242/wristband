@@ -29,6 +29,7 @@ import { UserCard } from "./UserCard";
 import { ConvexError } from "convex/values";
 import { EventCard } from "../../events/EventCard";
 import { CreateEventDialog } from "../../events/CreateEventDialog";
+import { InviteCard } from "../InviteCard";
 
 export default function BandPage() {
   const router = useRouter();
@@ -157,7 +158,7 @@ export default function BandPage() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Members</h2>
+            <h2 className="text-2xl font-semibold">Members</h2>
             {bandPageInfo.isAdmin && <InviteDialog bandId={bandId} />}
           </div>
 
@@ -177,9 +178,34 @@ export default function BandPage() {
           </div>
         </section>
 
+        <section>
+          <div className="pb-6 border-b mb-8">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Outgoing Invites
+            </h2>
+          </div>
+
+          {bandPageInfo.invites.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No pending invites
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-80">
+              {bandPageInfo.invites.map((invite) => (
+                <InviteCard
+                  key={invite._id}
+                  {...invite}
+                  type="outgoing"
+                  showButtons={bandPageInfo.isAdmin}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Upcoming Events</h2>
+            <h2 className="text-2xl font-semibold">Upcoming Events</h2>
             <CreateEventDialog bandId={bandId} />
           </div>
 
@@ -206,7 +232,7 @@ export default function BandPage() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Past Events</h2>
+          <h2 className="text-2xl font-semibold">Past Events</h2>
 
           {pastEvents === undefined ? (
             <div className="py-8 text-center text-muted-foreground">

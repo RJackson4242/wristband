@@ -61,7 +61,7 @@ export default function BandsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-80">
             {invites.map((invite) => (
-              <InviteCard key={invite._id} {...invite} />
+              <InviteCard key={invite._id} {...invite} type="incoming" />
             ))}
           </div>
         )}

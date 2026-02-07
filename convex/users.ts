@@ -93,30 +93,10 @@ export const deleteFromClerk = internalMutation({
 
     if (!user) return;
 
-    const [memberships, invites, rsvps] = await Promise.all([
+    const [memberships, invites] = await Promise.all([
       getMembershipsByUser(ctx, user._id),
       getInvitesByUser(ctx, user._id),
-      ctx.db
-        .query("rsvps")
-        .withIndex("by_user_event", (q) => q.eq("userId", user._id))
-        .collect(),
     ]);
-
-    await Promise.all(
-      rsvps.map(async (r) => {
-        const event = await ctx.db.get(r.eventId);
-        if (event) {
-          await ctx.db.patch(event._id, {
-            rsvpCount: Math.max(0, event.rsvpCount - 1),
-            attendingCount:
-              r.status === "yes"
-                ? Math.max(0, event.attendingCount - 1)
-                : event.attendingCount,
-          });
-        }
-        await ctx.db.delete(r._id);
-      }),
-    );
 
     await Promise.all([
       ...memberships.map((membership) =>

@@ -277,56 +277,10 @@ export const kick = mutation({
       throw new ConvexError("Target is admin.");
     if (targetMembership.role === "invited")
       throw new ConvexError("Target is not yet a member.");
+    if (currentUser._id === targetMembership.userId)
+      throw new ConvexError("Cannot kick yourself, leave the band instead");
 
-    const [, band, events] = await Promise.all([
-      assertBandPermissions(ctx, currentUser._id, targetMembership.bandId, [
-        "admin",
-      ]),
-      ctx.db.get(targetMembership.bandId),
-      ctx.db
-        .query("events")
-        .withIndex("by_band", (q) => q.eq("bandId", targetMembership.bandId))
-        .collect(),
-    ]);
-
-    if (!band) throw new ConvexError("Band does not exist.");
-
-    const rsvpsToDelete = await Promise.all(
-      events.map(async (event) => {
-        const rsvp = await ctx.db
-          .query("rsvps")
-          .withIndex("by_user_event", (q) =>
-            q.eq("userId", targetMembership.userId).eq("eventId", event._id),
-          )
-          .unique();
-
-        return rsvp ? { rsvp, event } : null;
-      }),
-    );
-
-    const validRsvps = rsvpsToDelete.filter(
-      (item): item is NonNullable<typeof item> => item !== null,
-    );
-
-    await Promise.all([
-      ctx.db.delete(targetMembership._id),
-
-      ctx.db.patch(band._id, {
-        memberCount: Math.max(0, band.memberCount - 1),
-      }),
-
-      ...validRsvps.map(async ({ rsvp, event }) => {
-        await ctx.db.patch(event._id, {
-          rsvpCount: Math.max(0, event.rsvpCount - 1),
-          attendingCount:
-            rsvp.status === "yes"
-              ? Math.max(0, event.attendingCount - 1)
-              : event.attendingCount,
-        });
-
-        await ctx.db.delete(rsvp._id);
-      }),
-    ]);
+    await leaveBand(ctx, targetMembership.bandId, targetMembership.userId);
   },
 });
 
@@ -350,20 +304,20 @@ export const getUserMemberships = query({
 export const getUserInvites = query({
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
-    const memberships = await getInvitesByUser(ctx, user._id);
+    const invites = await getInvitesByUser(ctx, user._id);
 
     const data = await Promise.all(
-      memberships.map(async (membership) => {
+      invites.map(async (invite) => {
         const [band, inviter] = await Promise.all([
-          ctx.db.get(membership.bandId),
-          membership.invitedBy ? ctx.db.get(membership.invitedBy) : null,
+          ctx.db.get(invite.bandId),
+          invite.invitedBy ? ctx.db.get(invite.invitedBy) : null,
         ]);
 
         if (!band) return null;
 
         return {
-          ...membership,
-          bandName: band.name,
+          ...invite,
+          title: band.name,
           invitorName: inviter?.displayName || "Unknown",
         };
       }),
