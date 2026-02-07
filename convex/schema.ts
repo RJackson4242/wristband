@@ -71,4 +71,10 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_event", ["userId", "eventId"])
     .index("by_user_time", ["userId", "startTime"]),
+
+  inviteLinks: defineTable({
+    bandId: v.id("bands"),
+    expiresAt: v.number(),
+    uses: v.number(),
+  }).index("by_band", ["bandId"]),
 });

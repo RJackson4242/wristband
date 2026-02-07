@@ -24,7 +24,7 @@ Built using NextJS, Convex, and Clerk, Bandiit offers responsive real-time updat
 
 ## Version Updates
 
-**v0.1.1 - Keepin' Tabs**
+**v0.2.0 - Keepin' Tabs**
 
 - Tabbed Interface: Split band pages into Members and Events tabs.
 - Invite Links: Added shareable invite links. Those without an account will be prompted to create one.
